@@ -1,0 +1,11 @@
+{
+  "name": "haven-project",
+  "version": "1.0.0",
+  "description": "haven protocol implementation of proof of identity",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx hardhat test"
+  },
+  "author": "josidbobo@gmail.com",
+  "license": "MIT"
+}
