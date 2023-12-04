@@ -1,6 +1,6 @@
 # Sample Hardhat Project
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+This project demonstrates the use of Haven Proof of Identity to ensure right access control to a Health record Smart Contract.  
 
 Try running some of the following tasks:
 
