@@ -21,12 +21,12 @@ contract HealthRecords is Ownable{
 
     // The number assigned to each access level on the Proof of Identity contract
     uint256 private constant _AccessLevel1 = 1;
-
     uint256 private constant _AccessLevel2 = 2;
-
     uint256 private constant allAccess = 3;
 
     uint256 private _auctionType;
+
+    event ProofOfIdentityAddressUpdated(address indexed poiAddress);
 
     event RecordUploaded(
         address indexed uploader,
@@ -36,25 +36,25 @@ contract HealthRecords is Ownable{
     );
     event NewMint(bytes id, address indexed minter, string metadataURI);
 
-    /// @notice Modifier for ensuring no two links uploaded are the same
-    modifier noDuplicate(string[] memory _links) {
-        RecordStruct[] memory list = portfolioList;
-        uint i;
-        while (i <= list.length) {
-            for (uint u = 0; u <= list[i].links.length; u++) {
-                for (uint y = 0; y <= _links.length; y++) {
-                    require(
-                        stringsNotEqual(_links[y], list[i].links[u]),
-                        "Cannot upload link to an existing research on our platform"
-                    );
-                }
-            }
-            i++;
-        }
-        _;
-    }
+    // /// @notice Modifier for ensuring no two links uploaded are the same
+    // modifier noDuplicate(string[] memory _links) {
+    //     RecordStruct[] memory list = portfolioList;
+    //     uint i;
+    //     while (i <= list.length) {
+    //         for (uint u = 0; u <= list[i].links.length; u++) {
+    //             for (uint y = 0; y <= _links.length; y++) {
+    //                 require(
+    //                     stringsNotEqual(_links[y], list[i].links[u]),
+    //                     "Cannot upload link to an existing record on our platform"
+    //                 );
+    //             }
+    //         }
+    //         i++;
+    //     }
+    //     _;
+    // }
 
-    // /// @notice modifier to prevent minting your own research portfolio as NFT
+    // /// @notice modifier to prevent minting your own record portfolio as NFT
     // modifier mint(bytes memory id) {
     //     for (uint i = 0; i <= count; i++) {
     //         require(
@@ -65,10 +65,15 @@ contract HealthRecords is Ownable{
     //     _;
     // }
 
-    /// @dev For all uploaded research
+    /// @dev For all uploaded records
     RecordStruct[] public portfolioList;
 
-    /// @dev Struct containing the details of each research
+    error AccountSuspended();
+
+    error UserType(uint256 userType, uint256 required);
+
+
+    /// @dev Struct containing the details of each record
     struct RecordStruct {
         bytes id;
         address uploadingStaff;
@@ -79,7 +84,7 @@ contract HealthRecords is Ownable{
         bytes32 documentHash;
     }
 
-    /// @dev For a particular user's uploaded research
+    /// @dev For a particular staff's uploaded record
     mapping(address => mapping(uint => RecordStruct))
         public personalPortfolio;
 
@@ -101,7 +106,7 @@ contract HealthRecords is Ownable{
         return first != second ? true : false;
     }
 
-    /// @notice To create unique ID for each Research work
+    /// @notice To create unique ID for each Record
     function createId(
         bytes16 b1,
         bytes32 b2
@@ -116,7 +121,7 @@ contract HealthRecords is Ownable{
         return result;
     }
 
-    /// @notice Function to upload a new research instance
+    /// @notice Function to upload a new record instance
     function uploadRecord(
         string memory patientName,
         bytes16 nameofContent,
@@ -135,21 +140,21 @@ contract HealthRecords is Ownable{
             llinks,
             documentHash
         );
-        ResearchStruct memory resRch = personalPortfolio[msg.sender][count];
+        RecordStruct memory resRch = personalPortfolio[msg.sender][count];
         count++;
 
         portfolioList.push(resRch);
 
-        emit ResearchUploaded(msg.sender, patientName, id, nameofContent);
+        emit RecordUploaded(msg.sender, patientName, id, nameofContent);
     }
 
-    /// @notice To get any research by using just the unique id
+    /// @notice To get any record by using just the unique id
     function getRecordByIndex(
         bytes memory identity
-    ) public view returns (ResearchStruct memory research) {
+    ) public view returns (RecordStruct memory research) {
         // Uncomment this line, and the import of "hardhat/console.sol", to print a log in your terminal
         // console.log("Unlock time is %o and block timestamp is %o", unlockTime, block.timestamp);
-        ResearchStruct[] memory u = portfolioList;
+        RecordStruct[] memory u = portfolioList;
         for (uint i = 0; i <= u.length; i++) {
             if (keccak256(u[i].id) == keccak256(identity)) {
                 research = u[i];
@@ -161,12 +166,12 @@ contract HealthRecords is Ownable{
     /// @notice To mint a research
     /// @dev Call the getResearchByIndex to get the research struct, send it as json to IPFS then call mint with
     /// the CID of the metadata (Researchstruct)
-    function mintResearch(
+    function mintRecord(
         bytes memory id,
         string memory metadataURI
     ) public mint(id) {
         nft.safeMint(msg.sender, metadataURI);
-        personalPortfolio[msg.sender][count] = getResearchByIndex(id);
+        personalPortfolio[msg.sender][count] = getRecordByIndex(id);
         count++;
 
         emit NewMint(id, msg.sender, metadataURI);
