@@ -9,8 +9,6 @@ import "./interface/ERC721Custom.sol";
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-// Uncomment this line to use console.log
-// import "hardhat/console.sol";
 
 contract HealthRecords is Ownable{
     ERC721Custom public nft;
