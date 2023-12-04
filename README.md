@@ -1,6 +1,6 @@
-# HAVEN PROTOCOL HEALTH RECORD CONTRACT
+# HAVEN PROTOCOL ACCESS CONTROL CONTRACT
 
-This project demonstrates the use of Haven Proof of Identity to ensure right access control to a Health record Smart Contract.  
+This project demonstrates the use of Haven's Proof of Identity to ensure the right access control to handling Health records via a Smart Contract.  
 
 Try running some of the following tasks:
 
