@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "../interfaces/IProofOfIdentity.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./interface/ERC721Custom.sol";
@@ -10,7 +10,7 @@ import "./interface/ERC721Custom.sol";
 pragma solidity ^0.8.0;
 
 
-contract HealthRecords is Ownable{
+contract HealthRecords is AccessControl {
     ERC721Custom public nft;
     uint public count;
 
@@ -23,6 +23,7 @@ contract HealthRecords is Ownable{
     uint256 private constant allAccess = 3;
 
     uint256 private _accessType;
+    
 
     event ProofOfIdentityAddressUpdated(address indexed poiAddress);
 
@@ -104,6 +105,7 @@ contract HealthRecords is Ownable{
     constructor(
         address proofOfIdentity_,
         uint256 accessType_,
+        address admin
     ) {
         if (accessType_ == 0 || accessType_ > _allAccess) {
             revert UserTypeDoesNotExist(accessType_);
@@ -116,6 +118,7 @@ contract HealthRecords is Ownable{
         );
 
         _setPOIAddress(proofOfIdentity_);
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
 
         _accessType = accessType_;
     }
@@ -194,7 +197,7 @@ contract HealthRecords is Ownable{
         }
     }
 
-    function _setPOIAddress(address poi) private {
+    function _setPOIAddress(address poi) private onlyRole(DEFAULT_ADMIN_ROLE){
         if (poi == address(0)) revert AuctionPOI__ZeroAddress();
         _proofOfIdentity = IProofOfIdentity(poi);
         emit ProofOfIdentityAddressUpdated(poi);
@@ -230,6 +233,12 @@ contract HealthRecords is Ownable{
     //Determines whether a given user type meets the requirements for
     function _hasType(uint256 userType) private view returns (bool) {
         return (_auctionType & userType) > 0;
+    }
+
+    function canSet(address account) external view returns (bool) {
+        if (!_hasID(account)) return false;
+        if (_isSuspended(account)) return false;
+        return true;
     }
 
     

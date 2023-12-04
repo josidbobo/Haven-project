@@ -1,4 +1,4 @@
-# Sample Hardhat Project
+# HAVEN PROTOCOL HEALTH RECORD CONTRACT
 
 This project demonstrates the use of Haven Proof of Identity to ensure right access control to a Health record Smart Contract.  
 
