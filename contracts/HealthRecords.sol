@@ -24,7 +24,7 @@ contract HealthRecords is Ownable{
     uint256 private constant _AccessLevel2 = 2;
     uint256 private constant allAccess = 3;
 
-    uint256 private _auctionType;
+    uint256 private _accessType;
 
     event ProofOfIdentityAddressUpdated(address indexed poiAddress);
 
@@ -35,6 +35,26 @@ contract HealthRecords is Ownable{
         bytes16 nameOfContent
     );
     event NewMint(bytes id, address indexed minter, string metadataURI);
+
+    error AccountSuspended();
+    // When attribute has expired, throw an Error
+    error UserType(uint256 userType, uint256 required);
+    // If the account has no proof of Idenitity throw an Error 
+    error POINoIdentityNFT();
+
+    error UserTypeDoesNotExist(_accessType);
+
+    modifier onlyPermissioned(address account) {
+        // ensure the account has a Proof of Identity NFT
+        if (!_hasID(account)) revert POINoIdentityNFT();
+
+        // ensure the account is not suspended
+        if (_isSuspended(account)) revert AccountSuspended(); 
+
+        // ensure the accouznt has a valid `userType`
+        _checkUserTypeExn(account);
+        _;
+    }
 
     // /// @notice Modifier for ensuring no two links uploaded are the same
     // modifier noDuplicate(string[] memory _links) {
@@ -68,11 +88,6 @@ contract HealthRecords is Ownable{
     /// @dev For all uploaded records
     RecordStruct[] public portfolioList;
 
-    error AccountSuspended();
-
-    error UserType(uint256 userType, uint256 required);
-
-
     /// @dev Struct containing the details of each record
     struct RecordStruct {
         bytes id;
@@ -88,12 +103,23 @@ contract HealthRecords is Ownable{
     mapping(address => mapping(uint => RecordStruct))
         public personalPortfolio;
 
-    constructor() {
+    constructor(
+        address proofOfIdentity_,
+        uint256 accessType_,
+    ) {
+        if (accessType_ == 0 || accessType_ > _allAccess) {
+            revert UserTypeDoesNotExist(accessType_);
+        }
+
         nft = new ERC721Custom(
             "NFT",
             "ERC20",
             "https://ipfs.io/ipfs/"
         );
+
+        _setPOIAddress(proofOfIdentity_);
+
+        _accessType = accessType_;
     }
 
     /// @notice Check if the two strings are equal
@@ -121,6 +147,13 @@ contract HealthRecords is Ownable{
         return result;
     }
 
+    function accountEligible(address account) external view returns (bool) {
+        if (!_hasID(account)) return false;
+        if (_isSuspended(account)) return false;
+        if (!_checkUserType(account)) return false;
+        return true;
+    }
+
     /// @notice Function to upload a new record instance
     function uploadRecord(
         string memory patientName,
@@ -128,7 +161,7 @@ contract HealthRecords is Ownable{
         string memory details,
         string[] memory llinks,
         bytes32 documentHash
-    ) public noDuplicate(llinks) {
+    ) public onlyPermissioned(msg.sender) {
         bytes memory id = createId(nameofContent, documentHash);
 
         personalPortfolio[msg.sender][count] = RecordStruct(
@@ -163,19 +196,73 @@ contract HealthRecords is Ownable{
         }
     }
 
+    function _setPOIAddress(address poi) private {
+        if (poi == address(0)) revert AuctionPOI__ZeroAddress();
+        _proofOfIdentity = IProofOfIdentity(poi);
+        emit ProofOfIdentityAddressUpdated(poi);
+    }
+
     /// @notice To mint a research
     /// @dev Call the getResearchByIndex to get the research struct, send it as json to IPFS then call mint with
     /// the CID of the metadata (Researchstruct)
     function mintRecord(
         bytes memory id,
         string memory metadataURI
-    ) public mint(id) {
+    ) public mint(id) onlyPermissioned(msg.sender) {
         nft.safeMint(msg.sender, metadataURI);
         personalPortfolio[msg.sender][count] = getRecordByIndex(id);
         count++;
 
         emit NewMint(id, msg.sender, metadataURI);
     }
+
+    
+    // Returns whether an account holds a Proof of Identity NFT.
+    function _hasID(address account) private view returns (bool) {
+        return _proofOfIdentity.balanceOf(account) > 0;
+    }
+
+
+    // Returns whether an account is suspended.  
+    function _isSuspended(address account) private view returns (bool) {
+        return _proofOfIdentity.isSuspended(account);
+    }
+
+    
+    //Determines whether a given user type meets the requirements for
+    function _hasType(uint256 userType) private view returns (bool) {
+        return (_auctionType & userType) > 0;
+    }
+
+    
+     /**  Helper function to check whether a given `account`'s `userType` is valid.
+     *
+     * For a `userType` to be valid, it must:
+     * -    not be expired; and
+     * -    the `_accessType` must either match the `userType`, or be set to
+     * -     `_allAccess` (`3`).
+     */
+    function _checkUserType(address account) private view returns (bool) {
+        (uint256 user, uint256 exp, ) = _proofOfIdentity.getUserType(account);
+        if (!_hasType(user)) return false;
+        if (!_validateExpiry(exp)) return false;
+        return true;
+    }
+
+    /**
+     * Similar to `_checkUserType`, but rather than returning a `bool`,
+     * will revert if the check fails
+     */
+    function _checkUserTypeExn(address account) private view {
+        (uint256 user, uint256 exp, ) = _proofOfIdentity.getUserType(account);
+
+        if (!_hasType(user)) revert UserType(user, _auctionType);
+
+        if (!_validateExpiry(exp)) {
+            revert UserAttributeExpired("userType", exp);
+        }
+    }
+
 
     /// @notice To get address of NFT contract
     function getNftAddress() public view returns (address) {
